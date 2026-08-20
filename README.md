@@ -22,6 +22,13 @@ A local FastAPI microservice for NDA contract clause classification and similari
 
 ---
 
+## Model Performance
+Fine-tuned DistilBERT on 4,104 clause examples (CUAD dataset, 9 categories), held-out validation set: **91.1% F1 (macro-averaged)**.
+
+Retrieval validated on both in-corpus and novel paraphrased input — see `/docs` for live testing.
+
+---
+
 ## Prerequisites
 - Python 3.9+ installed on your system.
 
@@ -59,9 +66,9 @@ uvicorn main:app --reload
 ```
 
 On first startup:
-- Downloads `Adi2335/nda-clause-classifier` from HuggingFace Hub.
+- Downloads `Adi2335/nda-clause-classifier-v2` from HuggingFace Hub.
 - Downloads `all-MiniLM-L6-v2` embedding model.
-- Indexes ~6,115 clause objects from `nda_clauses_corpus.json` into `./chroma_db`.
+- Indexes 4,104 clause objects from `nda_clauses_corpus.json` into `./chroma_db`.
 - On subsequent runs, ChromaDB automatically reuses the persisted vector database and skips re-embedding.
 
 ---
