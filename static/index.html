@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NDA Clause Risk Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: rgba(17, 24, 39, 0.75);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+      --accent-hover: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #c026d3 100%);
+      --badge-bg: rgba(99, 102, 241, 0.15);
+      --badge-border: rgba(99, 102, 241, 0.3);
+      --badge-text: #818cf8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem 1rem;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(217, 70, 239, 0.10) 0%, transparent 40%);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .header {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: var(--text-main);
+      font-size: 0.9rem;
+    }
+
+    textarea {
+      width: 100%;
+      height: 140px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.95rem;
+      resize: vertical;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    button {
+      width: 100%;
+      padding: 0.9rem;
+      background: var(--accent-gradient);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    button:hover {
+      opacity: 0.95;
+    }
+
+    button:active {
+      transform: scale(0.99);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .result-section {
+      margin-top: 2rem;
+      display: none;
+      border-top: 1px solid var(--border-color);
+      padding-top: 2rem;
+    }
+
+    .prediction-header {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .category-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .category-name {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .confidence-badge {
+      background: var(--badge-bg);
+      border: 1px solid var(--badge-border);
+      color: var(--badge-text);
+      padding: 0.4rem 0.9rem;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .precedents-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-main);
+    }
+
+    .precedent-card {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    .precedent-card:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .precedent-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .precedent-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .precedent-category {
+      font-weight: 600;
+      color: #a78bfa;
+    }
+
+    .precedent-distance {
+      color: var(--text-muted);
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
+
+    .precedent-text {
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: #e2e8f0;
+    }
+
+    .error-box {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1.5rem;
+      display: none;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>NDA Clause Risk Analyzer</h1>
+      <p>Classify NDA clauses into risk categories and retrieve matching precedents</p>
+    </div>
+
+    <form id="clauseForm">
+      <div class="form-group">
+        <label for="clauseText">NDA Clause Text</label>
+        <textarea id="clauseText" placeholder="Paste NDA clause text here... (e.g. Neither party may assign this Agreement without prior written consent.)" required></textarea>
+      </div>
+
+      <button type="submit" id="submitBtn">
+        <div class="spinner" id="btnSpinner"></div>
+        <span id="btnText">Analyze Clause</span>
+      </button>
+    </form>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="result-section" id="resultSection">
+      <div class="prediction-header">
+        <div>
+          <div class="category-title">Predicted Category</div>
+          <div class="category-name" id="predictedCategory">-</div>
+        </div>
+        <div class="confidence-badge" id="confidenceValue">0.0%</div>
+      </div>
+
+      <div class="precedents-title">Top 3 Similar Precedents</div>
+      <div id="precedentsList"></div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('clauseForm');
+    const textarea = document.getElementById('clauseText');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const btnText = document.getElementById('btnText');
+    const resultSection = document.getElementById('resultSection');
+    const predictedCategory = document.getElementById('predictedCategory');
+    const confidenceValue = document.getElementById('confidenceValue');
+    const precedentsList = document.getElementById('precedentsList');
+    const errorBox = document.getElementById('errorBox');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = textarea.value.trim();
+      if (!text) return;
+
+      // Reset UI state
+      errorBox.style.display = 'none';
+      resultSection.style.display = 'none';
+      submitBtn.disabled = true;
+      btnSpinner.style.display = 'block';
+      btnText.textContent = 'Analyzing...';
+
+      try {
+        const response = await fetch('/analyze-clause', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ text })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.detail || 'Analysis request failed.');
+        }
+
+        const data = await response.json();
+
+        // Render Prediction
+        predictedCategory.textContent = data.predicted_category;
+        confidenceValue.textContent = (data.confidence * 100).toFixed(1) + '% Confidence';
+
+        // Render Precedents
+        precedentsList.innerHTML = '';
+        if (data.similar_precedents && data.similar_precedents.length > 0) {
+          data.similar_precedents.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'precedent-card';
+            card.innerHTML = `
+              <div class="precedent-header">
+                <span class="precedent-category">#${index + 1} &bull; ${escapeHtml(item.category)}</span>
+                <span class="precedent-distance">Distance: ${item.distance.toFixed(4)}</span>
+              </div>
+              <div class="precedent-text">${escapeHtml(item.text)}</div>
+            `;
+            precedentsList.appendChild(card);
+          });
+        } else {
+          precedentsList.innerHTML = '<p style="color: var(--text-muted);">No precedent clauses found.</p>';
+        }
+
+        resultSection.style.display = 'block';
+      } catch (err) {
+        errorBox.textContent = err.message || 'An error occurred while connecting to the server.';
+        errorBox.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        btnSpinner.style.display = 'none';
+        btnText.textContent = 'Analyze Clause';
+      }
+    });
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>

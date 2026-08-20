@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from typing import List, Dict, Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -106,6 +108,15 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Serve static frontend files
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/", include_in_schema=False)
+async def read_root():
+    return FileResponse("static/index.html")
 
 
 class ClauseRequest(BaseModel):
