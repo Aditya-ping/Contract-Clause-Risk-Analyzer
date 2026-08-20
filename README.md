@@ -4,7 +4,7 @@ A local FastAPI microservice for NDA contract clause classification and similari
 
 ## Features
 - **Clause Classification**: Classifies text into 9 NDA clause categories using the fine-tuned DistilBERT model [`Adi2335/nda-clause-classifier-v2`](https://huggingface.co/Adi2335/nda-clause-classifier-v2).
-- **Precedent Retrieval**: Embeds clauses using `all-MiniLM-L6-v2` via `sentence-transformers` and queries top-3 similar precedent clauses stored in a persistent `chromadb` vector index (`./chroma_db`).
+- **Precedent Retrieval**: Embeds clauses using `all-MiniLM-L6-v2` via LangChain's `HuggingFaceEmbeddings`, and retrieves top-3 similar precedent clauses using LangChain's `Chroma` vectorstore backed by a persistent index (`./chroma_db`).
 - **Swagger Documentation**: Automated API documentation and interactive testing interface at `/docs`.
 
 ---
