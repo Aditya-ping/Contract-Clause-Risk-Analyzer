@@ -5,3 +5,6 @@ torch
 sentence-transformers
 chromadb
 python-multipart
+langchain
+langchain-huggingface
+langchain-chroma

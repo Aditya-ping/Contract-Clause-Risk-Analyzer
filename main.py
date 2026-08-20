@@ -7,14 +7,16 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from sentence_transformers import SentenceTransformer
-import chromadb
+
+from langchain_core.documents import Document
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 
 # Global variables for models and vector store client
 classifier_tokenizer = None
 classifier_model = None
-embedding_model = None
-chroma_collection = None
+embeddings = None
+vectorstore = None
 
 # Standard category mapping fallback matching dataset label indices (v2: 9 categories)
 LABEL_MAP = {
@@ -32,7 +34,7 @@ LABEL_MAP = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global classifier_tokenizer, classifier_model, embedding_model, chroma_collection
+    global classifier_tokenizer, classifier_model, embeddings, vectorstore
 
     print("Initializing NDA Clause Risk Analyzer models and database...")
 
@@ -43,22 +45,23 @@ async def lifespan(app: FastAPI):
     classifier_model = AutoModelForSequenceClassification.from_pretrained(hf_model_id)
     classifier_model.eval()
 
-    # 2. Load SentenceTransformer embedding model
+    # 2. Load LangChain HuggingFaceEmbeddings wrapper
     st_model_name = "all-MiniLM-L6-v2"
-    print(f"Loading SentenceTransformer model: {st_model_name}")
-    embedding_model = SentenceTransformer(st_model_name)
+    print(f"Loading LangChain HuggingFaceEmbeddings model: {st_model_name}")
+    embeddings = HuggingFaceEmbeddings(model_name=st_model_name)
 
-    # 3. Initialize ChromaDB PersistentClient and vector collection
+    # 3. Initialize LangChain Chroma vectorstore backed by local persistent directory
     chroma_db_path = "./chroma_db"
-    print(f"Initializing ChromaDB PersistentClient at {chroma_db_path}")
-    chroma_client = chromadb.PersistentClient(path=chroma_db_path)
-    chroma_collection = chroma_client.get_or_create_collection(
-        name="nda_clauses",
-        metadata={"hnsw:space": "cosine"}
+    print(f"Initializing LangChain Chroma vectorstore at {chroma_db_path}")
+    vectorstore = Chroma(
+        collection_name="nda_clauses",
+        embedding_function=embeddings,
+        persist_directory=chroma_db_path,
+        collection_metadata={"hnsw:space": "cosine"}
     )
 
-    # 4. Check if collection is empty; if so, populate from corpus file
-    existing_count = chroma_collection.count()
+    # 4. Check if collection is empty; if so, populate from corpus file using LangChain Documents
+    existing_count = vectorstore._collection.count()
     print(f"Current ChromaDB collection document count: {existing_count}")
 
     if existing_count == 0:
@@ -71,26 +74,24 @@ async def lifespan(app: FastAPI):
             corpus_data = json.load(f)
 
         total_items = len(corpus_data)
-        print(f"Loaded {total_items} clause items from corpus. Embedding and inserting into ChromaDB...")
+        print(f"Loaded {total_items} clause items from corpus. Converting to LangChain Documents...")
+
+        documents = [
+            Document(
+                page_content=item["text"],
+                metadata={"category": item.get("category", "Unknown")}
+            )
+            for item in corpus_data
+        ]
 
         batch_size = 500
         for i in range(0, total_items, batch_size):
-            batch = corpus_data[i:i + batch_size]
-            batch_texts = [item["text"] for item in batch]
-            batch_metadatas = [{"category": item.get("category", "Unknown")} for item in batch]
-            batch_ids = [f"clause_{i + j}" for j in range(len(batch))]
+            batch_docs = documents[i:i + batch_size]
+            batch_ids = [f"clause_{i + j}" for j in range(len(batch_docs))]
+            vectorstore.add_documents(documents=batch_docs, ids=batch_ids)
+            print(f"Indexed batch {i // batch_size + 1}/{(total_items + batch_size - 1) // batch_size} ({len(batch_docs)} items)")
 
-            batch_embeddings = embedding_model.encode(batch_texts, show_progress_bar=False).tolist()
-
-            chroma_collection.add(
-                ids=batch_ids,
-                embeddings=batch_embeddings,
-                documents=batch_texts,
-                metadatas=batch_metadatas
-            )
-            print(f"Indexed batch {i // batch_size + 1}/{(total_items + batch_size - 1) // batch_size} ({len(batch)} items)")
-
-        print(f"Indexing complete. Total items in collection: {chroma_collection.count()}")
+        print(f"Indexing complete. Total items in collection: {vectorstore._collection.count()}")
     else:
         print("Vector database already contains index data. Skipping re-embedding startup process.")
 
@@ -152,28 +153,18 @@ async def analyze_clause(request: ClauseRequest):
     else:
         predicted_category = LABEL_MAP.get(pred_idx, f"Category_{pred_idx}")
 
-    # 2. Vector Similarity Search with SentenceTransformer & ChromaDB
-    query_embedding = embedding_model.encode([request.text], show_progress_bar=False).tolist()
-
-    query_results = chroma_collection.query(
-        query_embeddings=query_embedding,
-        n_results=3
-    )
+    # 2. Vector Similarity Search with LangChain Chroma abstraction
+    results = vectorstore.similarity_search_with_score(request.text, k=3)
 
     similar_precedents = []
-    if query_results and query_results.get("documents") and query_results["documents"][0]:
-        docs = query_results["documents"][0]
-        metas = query_results["metadatas"][0]
-        distances = query_results["distances"][0]
-
-        for doc, meta, dist in zip(docs, metas, distances):
-            similar_precedents.append(
-                Precedent(
-                    text=doc,
-                    category=meta.get("category", "Unknown"),
-                    distance=float(dist)
-                )
+    for doc, score in results:
+        similar_precedents.append(
+            Precedent(
+                text=doc.page_content,
+                category=doc.metadata.get("category", "Unknown"),
+                distance=float(score)
             )
+        )
 
     return ClauseAnalysisResponse(
         predicted_category=predicted_category,
